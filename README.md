@@ -3,6 +3,8 @@
 
 ## AutomaticCode
 
+![](./resources/AutomaticCode.png)
+
 ```
 生成简易 OC 视图代码
 
