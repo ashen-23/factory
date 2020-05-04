@@ -8,26 +8,49 @@ import sys
 import os
 
 helpInfo = '''
-生成简易 OC 视图代码
+生成简易 OC 视图代码(@property, getter, AutoLayout)
 
 参数描述:
     viewName:ViewType:layoutType
     视图名称:视图类型:布局类型
     
-    eg: imgView:UIImageView
+    e.g. nameLabel:UILabel
     
-    eg: imgView:UIImageView:e
-        (e: make.edges (支持五种布局方式e/t/l/a/s))
+    e.g. nameLabel:UILabel:e
+        (e: make.edges (支持五种布局方式e/t/l/a/s), 详情可查看`内置布局`)
         
-    eg: imgView:i 
-        (i 是UIImageView的简写)
+    e.g. nameLabel:l
+        (l 是UILabel的简写)
         
-    eg: :i
-        (省略的名称默认为类型去掉'UI'前缀)
+    e.g. :l
+        (省略的名称默认为类型去掉'UI'前缀,此处结果是`lable`)
         
-    
-    eg: imgView:i collectionView:c tableView:UITableView
+    e.g. nameLabel:i nextButton:b numberText:t:a
         (支持同时生成生成多个视图)
+
+内置布局：
+    default: (left + top)
+    e: edge
+    t: top
+    l: left
+    a: all (top + left + bottom + right)
+    s: size（left + top + width + height）
+
+自定义布局：
+    类型1,值1/类型2,值2
+    e.g. w,200/h,100
+        (设置布局宽度200，高度100)
+
+    e.g. lt,20/r,15
+        (设置视图左侧和顶部相对于父视图为20,右侧视图相对于父视图为15)
+    
+    e.g. L,20/T,15
+        (设置左侧相对于上一个视图间距20，顶部视图相距于上一个视图间距15)
+        (上一个视图指执行脚本时的上一个)
+
+其他参数：
+    -view: 视图添加在UIView上，默认添加在UIViewController上
+
 '''
 
 ### 以下是模板
@@ -39,6 +62,10 @@ viewMap = {'c': 'UICollectionView', 't':'UITableView', 'l':'UILabel',
            't':'UITextField', 'tv':'UITextView', 'i':'UIImageView',
             'b':'UIButton', 'v':'UIView'}
 
+layoutMap = {'l':'left', 'r':'right', 't':'top', 'b':'bottom','w':'width','h':'height'}
+
+layoutRela = {'l':'right','t':'bottom','r':'left','b':'top'}
+
 getFunc = '''
 - (<#type#> *)<#name#> {
     if (!_<#name#>) {
@@ -47,6 +74,13 @@ getFunc = '''
     }
     return _<#name#>;
 }
+'''
+
+layoutBase = '''
+[<#parent#> addSubview:self.<#name#>];
+[self.<#name#> mas_makeConstraints:^(MASConstraintMaker *make) {
+<#layout#>
+}];
 '''
 
 # 默认：左+上
@@ -93,7 +127,6 @@ layoutL = '''
 [<#parent#> addSubview:self.<#name#>];
 [self.<#name#> mas_makeConstraints:^(MASConstraintMaker *make) {
     make.left.equalTo(<#last#>.mas_bottom).offset(<#padding#>);
-    make.top.equalTo(<#parent#>).offset(<#padding#>);
 }];
 '''
 
@@ -101,7 +134,6 @@ layoutL = '''
 layoutT = '''
 [<#parent#> addSubview:self.<#name#>];
 [self.<#name#> mas_makeConstraints:^(MASConstraintMaker *make) {
-    make.left.equalTo(<#parent#>).offset(<#padding#>);
     make.top.equalTo(<#last#>.mas_bottom).offset(<#padding#>);
 }];
 '''
@@ -132,11 +164,11 @@ module_collection = '''
 '''
 
 module_label = '''
-    _<#name#>.textColor = [Theme themeColorGray];
-    _<#name#>.font = [UIFont systemFontOfSize:14.f];
-    _<#name#>.numberOfLines = 0;
-    _<#name#>.textAlignment = NSTextAlignmentCenter;
-    _<#name#>.text = <#text#>;
+        _<#name#>.textColor = <#color#>;
+        _<#name#>.font = <#font#>;
+        _<#name#>.numberOfLines = 0;
+        _<#name#>.textAlignment = NSTextAlignmentCenter;
+        _<#name#>.text = <#text#>;
 '''
 
 ### 以上是模板
@@ -165,6 +197,9 @@ def makeParams(info):
 def getClass(key):
     return viewMap.get(key, key)
 
+def getLayoutName(key):
+    return layoutMap.get(key,key)
+
 def getExtension(name, className):
     result = ''
     if className == 'UICollectionView':
@@ -173,6 +208,8 @@ def getExtension(name, className):
         result = module_button
     elif className == 'UITableView':
         result = module_tableView
+    elif className == 'UILabel':
+        result = module_label
     return result.replace('<#name#>', name)
 
 def makeProperty(name, className):
@@ -188,19 +225,44 @@ def makeGetFunc(name, className):
 def makeMasonry(name, isVC, relation, last, padding):
     parentName = 'self.view' if isVC else 'self'
     result = ''
-    if relation == 't':
-        result = layoutT.replace('<#last#>', 'self.{}'.format(last))
-    elif relation == 'l':
-        result = layoutL.replace('<#last#>', 'self.{}'.format(last))
-    elif relation == 'e':
-        result = layoutEdge
-    elif relation == 's':
-        result = layoutSize
-    elif relation == 'a':
-        result = layoutAll
-    elif relation == 'd':
-        result = layoutDefault
-
+    if len(relation) == 1:
+        if relation == 't':
+            result = layoutT.replace('<#last#>', 'self.{}'.format(last))
+        elif relation == 'l':
+            result = layoutL.replace('<#last#>', 'self.{}'.format(last))
+        elif relation == 'e':
+            result = layoutEdge
+        elif relation == 's':
+            result = layoutSize
+        elif relation == 'a':
+            result = layoutAll
+        elif relation == 'd':
+            result = layoutDefault
+    else: # 完全自定义布局
+        params = relation.split('/')
+        layoutLines = []
+        for param in params:
+            kvs = param.split(',')
+            if len(kvs) != 2:
+                continue
+            ps = '.'
+            hasOthre = False
+            for k in kvs[0]:
+                print('{}----{}'.format(k,kvs[1]))
+                if k.isupper():
+                    lower = k.lower()
+                    other = layoutRela.get(lower,lower)
+                    value = kvs[1] if kvs[1].isdigit() else '<#code#>'
+                    layoutLines.append('    make.{}.equalTo(self.{}.mas_{}).offset({});'.format(getLayoutName(lower),last,other,value))
+                else:
+                    hasOthre = True
+                    ps += getLayoutName(k) + '.'
+            if hasOthre:
+                if kvs[1].isdigit():
+                    layoutLines.append('    make{}mas_equalTo({});'.format(ps,kvs[1]))
+                else:
+                    layoutLines.append('    make{}equalTo(self.{});'.format(ps,kvs[1]))
+        result = layoutBase.replace('<#layout#>', '\n'.join(layoutLines))
     return result.replace('<#parent#>', parentName).replace('<#name#>', name).replace('<#padding#>', padding)
 
 # 执行代码
@@ -224,7 +286,6 @@ def run(info):
                 isVC = False
             elif param.startswith('-p:'):
                 padding = param.replace('-p:', '')
-            pass
         else:
             if ':' in param:
                 views.append(param)
