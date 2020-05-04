@@ -8,9 +8,9 @@ import sys
 import os
 
 helpInfo = '''
-生成简易 OC 视图代码(@property, getter, AutoLayout)
+\033[33m生成简易 OC 视图代码(@property, getter, AutoLayout)\033[0m
 
-参数描述:
+\033[33m参数描述:\033[0m
     viewName:ViewType:layoutType
     视图名称:视图类型:布局类型
     
@@ -28,7 +28,7 @@ helpInfo = '''
     e.g. nameLabel:i nextButton:b numberText:t:a
         (支持同时生成生成多个视图)
 
-内置布局：
+\033[33m内置布局：\033[0m
     default: (left + top)
     e: edge
     t: top
@@ -36,7 +36,7 @@ helpInfo = '''
     a: all (top + left + bottom + right)
     s: size（left + top + width + height）
 
-自定义布局：
+\033[33m自定义布局：\033[0m
     类型1,值1/类型2,值2
     e.g. w,200/h,100
         (设置布局宽度200，高度100)
@@ -48,7 +48,7 @@ helpInfo = '''
         (设置左侧相对于上一个视图间距20，顶部视图相距于上一个视图间距15)
         (上一个视图指执行脚本时的上一个)
 
-其他参数：
+\033[33m其他参数：\033[0m
     -view: 视图添加在UIView上，默认添加在UIViewController上
 
 '''
@@ -310,7 +310,7 @@ if __name__ == "__main__":
     if len(sys.argv) <= 1:
         errorPrint('参数输入有误，请使用-help查看使用说明')
     elif '-help' in sys.argv:
-        highlightPrint(helpInfo)
+        print(helpInfo)
     else:
         os.system('clear')
         run(' '.join(sys.argv[1:]))
