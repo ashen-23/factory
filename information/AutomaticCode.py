@@ -1,8 +1,10 @@
+#!/usr/bin/env python3
 #
 #  AutomaticCode.py
 #
 #  Created by ashen23 on 2020/4/2130.
 #  Copyright © 2020. All rights reserved.
+
 
 import sys
 import os
