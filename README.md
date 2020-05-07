@@ -51,7 +51,7 @@
     -view: 视图添加在UIView上，默认添加在UIViewController上
 ```
 
-### 运行
+### 使用
 1. 可以使用`python3 xxx.py`运行
 
 ```
@@ -79,6 +79,7 @@ alias ac='python3 /xxx/AutomaticCode.py'
 ac imgView:i nameLabel:l
 ```
 
+---
 
 ## XcodeFileTemplate
 Xcode文件模板快速导入
